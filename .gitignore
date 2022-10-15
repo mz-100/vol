@@ -1,0 +1,8 @@
+*.aux
+*.log
+*.synctex.gz
+*.out
+*.toc
+.ipynb_checkpoints
+.vscode
+__pycache__
