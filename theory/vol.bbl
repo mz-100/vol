@@ -1,0 +1,109 @@
+\begin{thebibliography}{}
+
+\bibitem[Albrecher et~al., 2007]{Albrecher+07}
+Albrecher, H., Mayer, P., Schoutens, W., and Tistaert, J. (2007).
+\newblock The little {H}eston trap.
+\newblock {\em Wilmott}, (1):83--92.
+
+\bibitem[Andersen, 2008]{Andersen08}
+Andersen, L. (2008).
+\newblock Simple and efficient simulation of the heston stochastic volatility
+  model.
+\newblock {\em Journal of Computational Finance}, 11(3):1--43.
+
+\bibitem[Aurell, 2014]{Aurell14}
+Aurell, A. (2014).
+\newblock The {SVI} implied volatility model and its calibration.
+\newblock Master's thesis, Royal Institute of Technology, School of Engineering
+  Sciences, Stockholm.
+
+\bibitem[Baustian et~al., 2017]{Baustian+17}
+Baustian, F., Mr{\'a}zek, M., Posp{\'\i}{\v{s}}il, J., and Sobotka, T. (2017).
+\newblock Unifying pricing formula for several stochastic volatility models
+  with jumps.
+\newblock {\em Applied Stochastic Models in Business and Industry},
+  33(4):422--442.
+
+\bibitem[Black, 1976]{Black76}
+Black, F. (1976).
+\newblock The pricing of commodity contracts.
+\newblock {\em Journal of Financial Economics}, 3(1-2):167--179.
+
+\bibitem[Black and Scholes, 1973]{BlackScholes73}
+Black, F. and Scholes, M. (1973).
+\newblock The pricing of options and corporate liabilities.
+\newblock {\em Journal of Political Economy}, 81(3):637--654.
+
+\bibitem[Brenner and Subrahmanyam, 1988]{Brenner88}
+Brenner, M. and Subrahmanyam, M.~G. (1988).
+\newblock A simple approach to option valuation and hedging in the
+  black-scholes model.
+\newblock {\em Financial Analysts Journal}, 4(5):80--83.
+
+\bibitem[Broadie and Kaya, 2006]{BroadieKaya06}
+Broadie, M. and Kaya, {\"O}. (2006).
+\newblock Exact simulation of stochastic volatility and other affine jump
+  diffusion processes.
+\newblock {\em Operations research}, 54(2):217--231.
+
+\bibitem[Corrado and Miller, 1996]{CorradoMiller96}
+Corrado, C.~J. and Miller, Jr, T.~W. (1996).
+\newblock A note on a simple, accurate formula to compute implied standard
+  deviations.
+\newblock {\em Journal of Banking \& Finance}, 20(3):595--603.
+
+\bibitem[Dupire, 1994]{Dupire94}
+Dupire, B. (1994).
+\newblock Pricing with a smile.
+\newblock {\em Risk}, 7(1):18--20.
+
+\bibitem[Gatheral, 2004]{Gatheral04}
+Gatheral, J. (2004).
+\newblock A parsimonious arbitrage-free implied volatility parameterization
+  with application to the valuation of volatility derivatives.
+\newblock In {\em Presentation at Global Derivatives \& Risk Management,
+  Madrid}.
+
+\bibitem[Gatheral and Jacquier, 2014]{GatheralJacquier14}
+Gatheral, J. and Jacquier, A. (2014).
+\newblock Arbitrage-free svi volatility surfaces.
+\newblock {\em Quantitative Finance}, 14(1):59--71.
+
+\bibitem[Hagan et~al., 2002]{Hagan+02}
+Hagan, P.~S., Kumar, D., Lesniewski, A.~S., and Woodward, D.~E. (2002).
+\newblock Managing smile risk.
+\newblock {\em Wilmott Magazine}, September:84--108.
+
+\bibitem[Hagan and Woodward, 1999]{HaganWoodward99}
+Hagan, P.~S. and Woodward, D.~E. (1999).
+\newblock Equivalent {B}lack volatilities.
+\newblock {\em Applied Mathematical Finance}, 6(3):147--157.
+
+\bibitem[Heston, 1993]{Heston93}
+Heston, S.~L. (1993).
+\newblock A closed-form solution for options with stochastic volatility with
+  applications to bond and currency options.
+\newblock {\em The Review of Financial Studies}, 6(2):327--343.
+
+\bibitem[Lewis, 2000]{Lewis00}
+Lewis, A.~L. (2000).
+\newblock {\em Option Valuation under Stochastic Volatility}.
+\newblock Finance Press.
+
+\bibitem[Linetsky and Mendoza, 2010]{LinetskyMendoza10}
+Linetsky, V. and Mendoza, R. (2010).
+\newblock Constant elasticity of variance ({CEV}) diffusion model.
+\newblock In {\em Encyclopedia of Quantitative Finance}. John Wiley \& Sons,
+  Ltd.
+
+\bibitem[Martini and De~Marco, 2012]{Zeliade12}
+Martini, C. and De~Marco, S. (2012).
+\newblock Quasi-explicit calibration of {G}atheral’s {SVI} model.
+\newblock Technical report, Zeliade Systems.
+
+\bibitem[Mr{\'a}zek and Posp{\'\i}{\v{s}}il, 2017]{MrazekPospisil17}
+Mr{\'a}zek, M. and Posp{\'\i}{\v{s}}il, J. (2017).
+\newblock Calibration and simulation of heston model.
+\newblock {\em Open Mathematics}, 15(1):679--704.
+
+\end{thebibliography}

@@ -1,0 +1,1010 @@
+\documentclass[a4paper,11pt,titlepage]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+\usepackage[margin=1.25in]{geometry}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[sort]{natbib}
+\usepackage[colorlinks,allcolors=blue]{hyperref}
+\PassOptionsToPackage{usenames,dvipsnames}{xcolor}
+
+\usepackage[small,bf]{titlesec}
+\titlelabel{\thetitle.\hspace{0.5em}}
+\titleformat{\paragraph}[runin]{\bfseries}{\thetitle}{0em}{}[.]
+\titleformat{\subparagraph}[runin]{\it}{\thetitle}{0em}{}[.]
+\titlespacing{\paragraph}{0pt}{*3}{*1}
+\titlespacing{\subparagraph}{0pt}{*2}{*1}
+
+\usepackage{enumitem}
+\setlist[enumerate]{leftmargin=*,itemsep=\lineskip,parsep=0mm,partopsep=0mm,%
+  topsep=\lineskip}
+\setlist[itemize]{leftmargin=*,itemsep=0.5\parskip,parsep=0mm,partopsep=0mm,%
+  topsep=-0.5\parskip,label={{$\bullet$}}}
+\setlist[trivlist]{leftmargin=*,itemsep=0.5\parskip,parsep=0mm,partopsep=0mm,%
+  topsep=0\parskip}
+
+\renewcommand{\P}{\mathrm{P}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\prt}[2]{\frac{\partial{#1}}{\partial{#2}}}
+\newcommand{\prtt}[2]{\frac{\partial^2{#1}}{\partial{#2}^2}}
+\newcommand{\Prtt}[3]{\frac{\partial^2{#1}}{\partial{#2}\partial{#3}}}
+\renewcommand{\epsilon}{\varepsilon}
+\renewcommand{\phi}{\varphi}
+\renewcommand{\Re}{\mathrm{Re}}
+\newcommand{\Vega}{\mathcal{V}}
+\newcommand{\eqd}{\stackrel{\mathrm{d}}{=}}
+\DeclareMathOperator{\E}{E}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\I}{I}
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\Law}{Law}
+\renewcommand{\hat}{\widehat}
+\renewcommand{\tilde}{\widetilde}
+
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+
+\title{\bfseries {\LARGE\texttt{vol} package}\\[1em]
+  \Large Mathematical formulas}
+\author{}
+\date{}
+
+
+\begin{document}
+\maketitle
+
+\tableofcontents\newpage
+
+\section{Models based on a geometric Brownian motion}
+\subsection{Black--Scholes model}
+The base asset in the model is stock which under the pricing measure has the dynamics
+\[
+dS_t = rS_t dt + \sigma S_t dW_t, \qquad S_0 = s > 0,
+\]
+where $r\in \R$ is the risk-free interest rate and $\sigma>0$ is the volatility.
+We assume zero dividend rate.
+
+\paragraph{Call option price \citep{BlackScholes73}} 
+The price at time $t=0$ of a call option with expiration time $T$ and strike $K$:
+\[
+C := e^{-rT} \E (S_T-K)^+ = s\Phi(d_1) - e^{-rT}K\Phi(d_2),
+\]
+where 
+\[
+d_1 = \frac{1}{\sigma\sqrt T} 
+  \left( \ln\frac{s}{K} + \left(r + \frac{\sigma^2}{2} \right) T  \right),
+\quad 
+d_2 = d_1 - \sigma\sqrt T = \frac{1}{\sigma\sqrt T} 
+  \left( \ln\frac{s}{K} + \left(r - \frac{\sigma^2}{2} \right) T \right).
+\]
+
+\paragraph{Put--call parity}
+The prices of a call option and a put option with the same strike and expiration time satisfy the relation
+\[
+C - P = s - e^{-rT}K.
+\]
+
+\paragraph{Greeks}
+Some common Greeks of a call option:
+\begin{align*}
+&\Delta := \prt Cs = \Phi(d_1),\\
+&\Vega := \prt S\sigma = s\phi(d_1)\sqrt{T},\\
+&\Theta := -\prt CT 
+  = -\frac{s\phi(d_1)\sigma}{2\sqrt T} - rKe^{-rT}\Phi(d_2),\\
+&\Gamma := \prtt Cs = \frac{\phi(d_1)}{s\sigma\sqrt T}.
+\end{align*}
+
+\paragraph{Implied volatility approximation}
+\cite{Brenner88} approximation of implied volatility of a call options with strike $K\approx se^{rT}$:
+\[
+\hat\sigma \approx \frac{C}{s} \sqrt{\frac{2\pi}{T}}
+  \approx \frac{2.5C}{s\sqrt T}.
+\]
+It is obtained by setting $K = se^{rT}$, $\Phi(x) = \frac12 + \frac{1}{\sqrt{2\pi}} x$ in the Black--Scholes formula.
+
+A more accurate approximation by \cite{CorradoMiller96}:
+{\small
+\[
+\hat\sigma 
+  \approx \frac{\sqrt{2\pi}}{\sqrt T (s + e^{-rT}K)} 
+    \left( 
+      C - \frac{s-e^{-rT}K}{2} 
+      + \sqrt{
+          \left( \left( C - \frac{s-e^{-rT}K}{2} \right)^2 
+          - \frac{(s-e^{-rT}K)^2}{\pi} \right)^+ 
+        } 
+    \right).
+\]
+}
+
+\subsection{Black model}
+The base asset in the model is a forward or futures contract which under the pricing measure has the dynamics
+\[
+dF_t = \sigma F_t dW_t, \qquad F_0=f>0,
+\]
+where $\sigma>0$ is the volatility.
+
+In what follows, $r\in \R$ denotes the risk-free interest rate, $T$ denotes the expiration time of an option, and $T'$ denotes the expiration (delivery) time of a forward contract.
+For options on futures contracts, the expiration time of a futures contract does not enter the formulas.
+
+\paragraph{Call option price \citep{Black76}} 
+The price of a call option with time to expiration $T$ and strike $K$ on a futures contract:
+\[
+C_\mathrm{fut} := e^{-rT} \E(F_T - K)^+ = e^{-rT}(f\Phi(d_1) - K\Phi(d_2)).
+\]
+The price of a call option on a forward contract:
+\[
+C_\mathrm{for} := e^{-rT'} \E(F_T - K)^+ = e^{-rT'}(f\Phi(d_1) - K\Phi(d_2))
+\]
+(the difference is in the discounting factor).
+In both formulas,
+\[
+d_1 = \frac{1}{\sigma\sqrt T} 
+  \biggl( 
+    \ln\frac{f}{K} + \frac{\sigma^2}{2} T
+  \biggr),\qquad 
+d_2 = d_1 - \sigma\sqrt T 
+  = \frac{1}{\sigma\sqrt T} \biggl(\ln\frac{f}{K} 
+    -\frac{\sigma^2}{2} T\biggr).
+\]
+
+\paragraph{Put--call parity}
+The prices of a call option and a put option with the same strike and expiration time satisfy the relations
+\[
+C_\mathrm{fut} - P_\mathrm{fut} = e^{-rT}(f - K), \qquad
+C_\mathrm{for} - P_\mathrm{for} = e^{-rT'}(f - K).
+\]
+
+\paragraph{Greeks}
+Some common Greeks of a call option:
+\begin{align*}
+&\Delta_\mathrm{fut}  = e^{-rT}\Phi(d_1),&
+&\Delta_\mathrm{for}  = e^{-rT'}\Phi(d_1),\\
+&\Vega_\mathrm{fut}   = e^{-rT}f  \phi(d_1)\sqrt T,&
+&\Vega_\mathrm{for}   = e^{-rT'}f  \phi(d_1)\sqrt T,\\
+&\Theta_\mathrm{fut}  = r C_\mathrm{fut} - 
+                          e^{-rT}\frac{f\phi(d_1)\sigma}{2\sqrt T},&
+&\Theta_\mathrm{for}  = -e^{-rT'}\frac{f\phi(d_1)\sigma}{2\sqrt T},\\
+&\Gamma_\mathrm{fut}  = e^{-rT}\frac{\phi(d_1)}{f\sigma\sqrt T},&
+&\Gamma_\mathrm{for}  = e^{-rT'}\frac{\phi(d_1)}{f\sigma\sqrt T},
+\end{align*}
+where $\Delta = \partial C/\partial f$,
+$\mathcal{V} = \partial C/\partial \sigma$,
+$\Theta = -\partial C/\partial T$,
+$\Gamma = \partial^2 C/ \partial f^2$.
+% A convenient relation: f\phi(d_1) = K\phi(d_2).
+
+\paragraph{Implied volatility approximation} 
+Similarly to \cite{Brenner88}, for a call option with strike $K\approx f$ we have
+\[
+\hat\sigma 
+  \approx  e^{rT}\frac{C_\mathrm{fut}}{f} \sqrt{\frac{2\pi}T} 
+  \approx e^{rT} \frac{2.5C}{f\sqrt{T}}, \qquad
+\hat\sigma 
+  \approx e^{rT'}\frac{C_\mathrm{for}}{f} \sqrt{\frac{2\pi}T}
+  \approx e^{rT'} \frac{2.5C}{f\sqrt{T}}.
+\]
+
+\paragraph{A remark on reduction of the Black model to the Black--Scholes model}
+When programming these models, it is be desirable to have a single set of functions (or a class)  instead of two separate ones for the Black-Scholes and Black models.
+The formulas below show how computation in the Black model can be reduced to the Black--Scholes model.
+
+Let $C^{(0)}$, $\Delta^{(0)}$, etc.\ denote the option price and Greeks in the Black--Scholes model with zero interest rate and initial price $s$ being equal to the forward/futures price $f$; the volatility $\sigma$ being the same as in the Black model.
+
+Consider an option in the Black model with interest rate $r\in \R$ and let $\tau$ be the time to delivery of the base asset, which is $\tau=T$, the option's expiration time, if the base asset is a futures contract\footnote{Because futures contract are marked to market, effectively the base asset is delivered when the option is exercised.}, or $\tau=T'\ge T$ if the base asset is a forward contract.
+
+Then we have the following formulas:
+\begin{align*}
+&C      =  e^{-r\tau} C^{(0)},\\
+&\Delta = e^{-r\tau}\Delta^{(0)},\\
+&\Vega  = e^{-r\tau} \Vega^{(0)},\\
+&\Theta =
+  \begin{cases}
+    e^{-r\tau} \Theta^{(0)}      &\text{for a forward contract},\\
+    e^{-r\tau} \Theta^{(0)} + rC &\text{for a futures contract},
+  \end{cases}\\
+&\Gamma     = e^{-r\tau}\Gamma^{(0)},\\
+&\hat\sigma = \hat\sigma^{(0)}.
+\end{align*}
+
+
+\section{CEV (Constant Elasticity of Variance) model}
+(A concise exposition of the theory below can be found in \cite{LinetskyMendoza10})
+The base asset has the following dynamics under the pricing measure:
+\[
+dS_t = rS_t dt + \sigma S_t^\beta dW_t, \qquad S_0 = s > 0,\\
+\]
+where $r\in\R_+$ is the risk-free interest rate, and $\sigma>0$, $\beta\ge 0$ are parameters of the model. In what follows, assume that $\beta\neq 1$ (otherwise we have the Black--Scholes model).
+For convenience, denote
+\[
+\nu = \frac{1}{2(\beta-1)}.
+\]
+If $\beta\in[0,1)$, the process may reach zero (see below).
+We will assume that the process remains at zero forever after reaching it, e.g.\ the company bankrupts.
+
+The case $r\neq 0$ can be reduced to $r=0$ by the following transformation:
+\begin{equation}
+\label{cev-drift-change}
+S_t^{(r)} \eqd e^{rt} S_{\tau(t)}^{(0)}, \qquad
+  \text{where}\ \tau(t) = \frac{e^{2r(\beta-1)t} -1}{2r(\beta-1)}.
+\end{equation}
+Another useful fact is that if $r=0$, then the process
+\begin{equation}
+\label{cev-bessel}
+X_t = \frac{S_t^{2(1-\beta)}}{\sigma^2(1-\beta)^2}.
+\end{equation}
+is a squared Bessel process of dimension $\delta=\frac{1-2\beta}{1-\beta}$, i.e.\ satisfies the SDE
+\[
+dX_t = \delta dt + 2\sqrt{X_t} dW_t.
+\]
+
+\paragraph{Path and distributional properties}
+The following properties can be derived from the known transition distribution of the squared Bessel process (see section ``Simulation'' below).
+
+\subparagraph{Case $\beta\in[0,1)$}
+\begin{itemize}
+\item The process $S_t$ reaches zero in finite time with positive probability, and the distribution of the reaching time $\tau$ is
+\[
+\P(\tau \le t) 
+  = G \left( 
+    |\nu|,\ \frac{rs^{2(1-\beta)}}{\sigma^2(1-\beta)(1-e^{2r(\beta-1)t})} 
+  \right),
+\]
+where $G(\nu,x) = \frac{1}{\Gamma(\nu)} \int_x^\infty u^{\nu-1}e^{-u}du$ is the complementary gamma distribution function (use \texttt{scipy.special.gammaincc($\nu$,\,$x$)}).
+For $r=0$, the second argument of $G$ should be understood in the limit $r\to0$, i.e.\ we have
+\[
+\P(\tau\le t) = G \left(
+  |\nu|,\ \frac{s^{2(1-\beta)}}{2\sigma^2(1-\beta)^2t} 
+\right) 
+\qquad \text{(if $r=0$)}.
+\]
+
+\item The density of the absolutely continuous part of the transition distribution) is given by (for $x>0$)
+\begin{equation}
+\label{cev-density}
+\P(S_t^{(0)}\in dx \mid S_0=s) = 
+  \frac{x^{-2\beta+\frac12}\sqrt s}
+       {\sigma^2|\beta-1|t} 
+  I_{|\nu|} \left( 
+    \frac{(sx)^{1-\beta}}{\sigma^2(\beta-1)^2 t}
+  \right) 
+  \exp \left( 
+    -\frac{s^{2-2\beta} + {2-2\beta}}{2\sigma^2(\beta-1)^2t} 
+  \right),
+\end{equation}
+where $I_\nu(z)$ is the modified Bessel function of the first kind of order $\nu$ (use \texttt{scipy.\allowbreak special.iv($\nu$,\,$z$)}).
+Note that the integral of this density over $\R_+$ is less than 1, and the remaining probability is the mass at zero.
+
+\item The process $S_t$ is a martingale.
+\end{itemize}
+
+\subparagraph{Case $\beta>1$}
+\begin{itemize}
+\item The process never reaches zero.
+
+\item The transition density is given by the same formula (\ref{cev-density}), but now it integrates to 1.
+
+\item The process $S_t$ is a strict local martingale and
+\begin{align*}
+&\E S_t^{(r)} = e^{rt}s \left( 1 - 
+  G\left(
+    \nu,\ 
+    \frac{rs^{2-2\beta}}{\sigma^2(\beta-1)(e^{2r(\beta-1)t}-1)} 
+  \right) 
+\right) \qquad \text{if}\ r>0,\\
+&\E S_t^{(0)} = s \left( 1 - 
+  G \left( \nu,\ \frac{s^{2-2\beta}}{2\sigma^2(\beta-1)^2t} \right)
+\right).
+\end{align*}
+\end{itemize}
+
+\paragraph{Call option price}
+Let $C(T,K) = e^{-rT}\E(S_T-K)^+$. Then we have
+\begin{align*}
+\text{for $\beta\in(0,1)$:}&\quad 
+  C(T,K) = s Q(y; 2(1+|\nu|), \xi) - e^{-rT}K F(\xi; 2|\nu|, y),\\
+\text{for $\beta>1$:}&\quad 
+  C(T,K) = s Q(\xi; 2\nu, y) - e^{-rT}K F(y; 2(1+\nu), \xi),
+\end{align*}
+where $F(z; d,\lambda)$ and $Q(z; d,\lambda) = 1 - F(z;d,\lambda)$ are the distribution and survival functions of the non-central chi-square distribution with $d$ degrees of freedom and non-centrality parameter $\lambda$ (use \texttt{scipy.stats.ncx2($d$,\,$\lambda$)}), and
+\[
+\xi = \frac{2r s^{2(1-\beta)}}{\sigma^2(1-\beta)(1 - e^{2r(\beta-1)T})},
+\qquad
+y = \frac{2rK^{2(1-\beta)}}{\sigma^2(1-\beta)(e^{2r(1-\beta)T} - 1)}.
+\]
+For $r=0$ we obtain $\xi$ and $y$ by passing to the limit $r\to 0$:
+\[
+\xi = \frac{s^{2(1-\beta)}}{\sigma^2(1-\beta)^2T}, \qquad
+y = \frac{K^{2(1-\beta)}}{\sigma^2(1-\beta)^2T} \qquad\text{(if $r=0$)}.
+\]
+Note that thanks to formula \eqref{cev-drift-change}, we can reduce pricing of options with arbitrary $r>0$ to the case $r=0$:
+\begin{equation}
+\label{cev-price-drift-change}
+C^{(r)}(T,K) = C^{(0)}(T', K'), \qquad 
+T' = \tau(T) = \frac{e^{2r(\beta-1)T}-1}{2r(\beta-1)}, \qquad 
+K' = e^{-rT} K.
+\end{equation}
+
+\paragraph{Approximation of implied volatility}
+The Black--Scholes implied volatility produced by the CEV model can be approximated by the formula of \cite{HaganWoodward99}.
+If $r=0$, then
+\begin{equation}
+\label{cev-approximate-iv}
+\hat\sigma(T,K) = \frac{\sigma}{\tilde s^{1-\beta}} 
+  \biggl(
+    1 + \frac{(1-\beta)(2+\beta)}{24} \biggl(\frac{s-K}{\tilde s}\biggr)^2
+    + \frac{(1-\beta)^2}{24}\frac{\sigma^2T}{\tilde s^{2(1-\beta)}} + \ldots
+  \biggr),
+\end{equation}
+where $\tilde s = \frac12(s+K)$.
+
+If $r>0$, then with $T' = \tau(T)$, $K' = e^{-rT} K$ (as in \eqref{cev-price-drift-change}), we have
+\[
+\hat \sigma^{(r)}(T,K) = \hat \sigma^{(0)}(T', K')\sqrt{\frac{T'}T}.
+\]
+
+\paragraph{Simulation}
+Simulation can be done from the exact transition density.
+It is easier to simulate the squared Bessel process $X_t$ from \eqref{cev-bessel}, then get $S^{(0)}$ and finally transform to $S_t^{(r)}$:
+\[
+S_t^{(r)} = e^{rt} (\sigma^2(1-\beta)^2 X_{\tau(t)})^{\frac1{2(1-\beta)}}.
+\]
+To simulate $X_t$, we use the following transition density:
+\begin{align*}
+&\text{for $\beta>1$:}\quad 
+  \P(X_{t+\Delta t} \le x\mid X_t=y) 
+    = \P\left(
+        \chi'^2\left(\delta, \frac y{\Delta t}\right) 
+        \le \frac{x}{\Delta t}
+      \right)\\
+&\text{for $\beta<1$:}\quad 
+  \P(X_{t+\Delta t} \le x\mid X_t=y) 
+    = \P\left(
+        \chi'^2\left(2-\delta, \frac x{\Delta t}\right) 
+        \ge \frac{y}{\Delta t}
+      \right),
+\end{align*}
+where $\chi'^2(d,\lambda)$ is the non-central chi-square distribution with $d$ degrees of freedom and non-centrality parameter $\lambda$.
+In Python, if $\beta>1$, it is convenient to use \texttt{scipy.stat.ncx2(df=$\delta$,\, nc=$\frac{x}{\Delta t}$,\, scale=$\Delta t$).rvs(\ldots)}.
+If $\beta<1$, we have to simulate a uniform random variable and invert the distribution function.
+
+
+\section{Local volatility}
+Assume the base asset is stock. Let $S_0=s$, and $r$ be the (constant)
+risk-free interest rate. Denote by $\hat C(T,K)$ the prices of call options
+observed in the market, which are assumed to be available for all
+$T\in[0,T_{\max}]$ and $K>0$.
+
+By \emph{local volatility} we call a function $\sigma(t,s)$ such that the
+option prices $C(T,K) = e^{-rT}\E(S_T-K)^+$ produced by the model
+\begin{equation}
+\label{localvol-sde}
+dS_t = rS_t dt + \sigma(t,S_t) S_t dW_t, \qquad S_0 = s,
+\end{equation}
+coincide with the market prices, i.e.\ $C(T,K) = \hat C(T,K)$ for all
+$T\in[0,T_{\max}]$, $K>0$. In what follows, assume that such $\sigma(t,s)$
+exists, and equation \eqref{localvol-sde} has a unique solution such that
+$e^{-rt}S_t$ is a martingale.
+
+In a similar way, if the base asset is a futures of forward contract, by local
+volatility we call a function $\sigma(t,f)$ such that the model
+\[
+dF_t = \sigma(t,F_t)F_t dW_t, \qquad F_0 = f,
+\]
+produces option prices equal to the market prices.
+
+\paragraph{Dupire's formula \citep{Dupire94}} 
+The function $\sigma(t,s)$ can be found from the equation
+\[
+\sigma^2(t,s) = \frac{2 C'_T(t,s) + rs C'_K(t,s)}{s^2 C''_{KK}(t,s)}.
+\]
+If the base asset is a forward contract, we have the same formula as for
+$r=0$, i.e.
+\[
+\sigma^2_{\mathrm{for}}(t,f) = \frac{2C'_T(t,f)}{f^2 C''_{KK}(t,f)}.
+\]
+If the base asset is a futures contract, then
+\[
+\sigma^2_{\mathrm{fut}}(t,f) = 
+\frac{2(C'_T(t,f) + r C(t,f))}{f^2 C''_{KK}(t,f)}.
+\]
+
+In practical applications, one need to use market prices $\hat C$ in place of
+$C$ and find the derivatives of the function $\hat C(T,K)$ numerically
+(perhaps, first interpolating the price surface with some smooth or piecewise
+smooth function).
+
+\begin{remark} 
+It is necessary to impose some technical conditions for the validity of
+Dupire's formula. For example it is sufficient to require that the solution
+$S_t$ of \eqref{localvol-sde} has a continuous density $f(t,s)$ for each
+$t\in(0,T_{\max}]$ and the function $C(T,K)$ is in the class $C^{1,2}$.
+\end{remark}
+
+
+\paragraph{Approximation of implied volatility} Assume the interest rate is
+zero and the base asset price has the dynamics
+\[
+dS_t = A(S_t) dW_t, \qquad S_0 = s > 0.
+\]
+Then the Black--Scholes implied volatility produced by this model can be
+approximated by the following formula (\cite{HaganWoodward99}; formula
+\eqref{cev-approximate-iv} for the CEV model is a particular case of it):
+\begin{multline*}
+\hat\sigma(T,K) = \frac{ A(\tilde s)}{\tilde s} 
+\biggl\{ 1 + \frac1{24} 
+  \biggl[ 
+     \frac{A''(\tilde s)}{A(\tilde s)} -
+     2\biggl( \frac{A'(\tilde s)}{A(\tilde s)} \biggr)^2 + \frac{2}{\tilde s^2}
+  \biggr] (s-K)^2 \\ + 
+  \frac{1}{24} 
+  \biggl[ 
+     2\frac{A''(\tilde s)}{A(\tilde s)} - 
+     \biggl( \frac{A'(\tilde s)}{A(\tilde s)} \biggr)^2 + 
+    \frac{1}{\tilde s^2}
+  \biggr]  A^2(\tilde s)T + \ldots
+\biggl\}
+\end{multline*}
+where $\tilde s = \frac12(s+K)$. 
+
+
+\section{Heston model}
+The base asset  has the following dynamics under the pricing measure:
+\begin{align*}
+&dS_t = r S_t dt + \sqrt{V_t} dW_t^1, \qquad S_0 = s > 0,\\
+&dV_t = \kappa(\theta-V_t)dt + \sigma\sqrt{V_t} dW_t^2, \qquad V_0 = v > 0,\\
+&dW_t^1 dW_t^2 = \rho dt,
+\end{align*}
+where $r\in\R$ is the risk-free interest rate, and $\kappa,\theta,\sigma > 0$,
+$\rho\in(-1,1)$ are parameters.
+
+The variance process $V_t$ is strictly positive for all $t\ge 0$ if Feller's
+condition hold:
+\[
+2\kappa\theta \ge \sigma^2;
+\]
+otherwise it is non-negative and reflects at zero.
+
+
+\subsection{Heston's and Lewis' semi-closed formulas for option prices }
+\paragraph{Heston's formula \citep{Heston93}} 
+The price of a call option with expiration time $T$ and strike $K$:
+\[
+C = \frac{s-e^{-rT K}}{2} 
++ \frac1\pi \int_0^\pi \Re\left(
+  \frac{e^{-u\ln K} s \tilde\phi(u) - e^{-rT}K \phi(u)}{iu}
+\right) du, 
+\]
+where $\phi(u) = \E e^{iu\ln X_T}$ is the characteristic function of the
+log-price $X_T = \ln S_T$ at expiration time under the martingale measure, and
+$\tilde\phi(u)$ is the same characteristic function but under the measure such
+that $e^{rt}/S_t$ is a martingale. These characteristic functions are related
+as follows:
+\[
+\tilde\phi(u) = \frac{\phi(u-i)}{s e^{rT}}.
+\]
+The function $\phi(u)$ is given by the formula (with $i=\sqrt{-1}$ everywhere)
+\[
+\phi(u) = \exp(C(u) + D(u)v + iu \ln s),
+\]
+where
+\begin{align*}
+&C(u) = irT u + \frac{\kappa\theta}{\sigma^2}
+  \left(
+    (\kappa- i\rho\sigma u - d(u)) T -
+    2\ln\left( \frac{1-g(u)e^{-d(u)T}}{1-g(u)} \right)
+  \right),\\
+&D(u) = \frac{\kappa - i\rho\sigma u - d(u)}{\sigma^2}
+  \left( \frac{1-e^{-d(u)T}}{1-g(u)e^{-d(u)T}} \right),
+\end{align*}
+and
+\[
+d(u) = \sqrt{(i\rho\sigma u - \kappa)^2 + \sigma^2(iu + u^2)}, \qquad
+g(u) = \frac{i\rho\sigma u- \kappa +d(u)}{i\rho\sigma u - \kappa -d(u)}.
+\]
+\begin{remark}
+The above formulas are obtained by choosing the good (stable) solution of the
+Riccati equation arising in the derivation of Heston's formula, see
+\cite{Albrecher+07}.
+\end{remark}
+
+\paragraph{Lewis' formula \citep{Lewis00}}
+The price of a call option with expiration time $T$ and strike $K$:
+\[
+C = s - \frac{Ke^{-rT}}{2\pi} 
+\int_{-\infty+i/2}^{+\infty+i/2} e^{-ixu} \frac{\hat H(u)}{u^2 - iu} du,
+\]
+where $x=\ln(s/K)+rT$ and $\hat H(u)$ is the \emph{fundamental transform} for
+the Heston model, which is given by
+\[
+\hat H(u) = \exp(f_1(u) + vf_2(u)),
+\]
+where
+\begin{align*}
+&f_1(u) = \frac{2\kappa\theta}{\sigma^2}
+  \left[ 
+    qg(u) - \ln\left( \frac{1-h(u)e^{-q\xi(u)}}{1-h(u)} \right)
+  \right],\\
+&f_2(u) = \left( \frac{1-e^{-q\xi(u)}}{1-h(u)e^{-q\xi(u)}} \right)g(u),
+\end{align*}
+and
+\begin{align*}
+&g(u) = \frac{b(u) - \xi(u)}{2}, \quad 
+h(u)  = \frac{b(u) - \xi(u)}{b(u) + \xi(u)}, \quad 
+q     = \frac{\sigma^2T}{2},\\
+&\xi(u) = \sqrt{b(u)^2 + \frac{4(u^2-iu)}{\sigma^2}}, \qquad 
+b(u)    = \frac{2(i\rho\sigma u + \kappa)}{\sigma^2}.
+\end{align*}
+\begin{remark}
+The above formulas are from \citet[Ch.~2]{Baustian+17}. They can be also found
+in \cite{Lewis00}, but in a somewhat less compact form.
+\end{remark}
+
+
+\subsection{Simulation methods}
+Suppose we need to simulate the values of the processes $(S_t, V_t)$ at points
+$t_i = i \Delta t$, $i=0,\ldots,n$, where $\Delta t>0$ is a time step.
+
+\paragraph{Euler's scheme} 
+In order to avoid negative values of the variance process, standard Euler's
+scheme can be modified as follows: denote $X_t = \ln S_t$ and simulate
+\begin{align*}
+&X_{t_0}     = \ln s, \quad V_{t_0} = v,\\
+&X_{t_{i+1}} = X_{t_i} + \left(r -  \frac{V_{t_i}^+}2\right)\Delta t 
+  + \sqrt{ V_{t_i}^+} \left(\rho Z_{i+1} + \sqrt{1-\rho^2} Z'_{i+1}\right)
+    \sqrt{\Delta t}, \\
+&V_{t_{t+i}} =  V_{t_i} + \kappa(\theta -  V_{t_i}^+) \Delta t +
+  \sigma \sqrt{V_{t_i}^+} Z'_{i+1} \sqrt{\Delta t},
+\end{align*}
+where $Z_i$ and $Z'_i$ are independent sequences of i.i.d.\ standard normal
+variables. Then we recover $S_{t_{i}} = \exp(X_{t_i})$,
+
+\paragraph{Exact scheme \citep{BroadieKaya06}} 
+The idea of this scheme is based on the representation
+\begin{align}
+\label{broadie-kaya-1}
+&S_{t_{i+1}} = 
+  S_{t_i} 
+  \exp\left( 
+    r\Delta t - \frac12 \int_{t_i}^{t_{i+1}} V_s  ds 
+    + \rho\int_{t_i}^{t_{i+1}} \sqrt{V_s} d W_s^1 
+    + \sqrt{1-\rho^2} \int_{t_i}^{t_{i+1}} \sqrt{V_s} d W_s^2
+  \right),\\
+\label{broadie-kaya-2}
+&V_{t_{i+1}} = V_{t_i} + \kappa\theta\Delta t 
+  - \kappa\int_{t_i}^{t_{i+1}} V_s ds 
+  + \sigma \int_{t_i}^{t_{i+1}} \sqrt{V_s} d W_s^1,
+\end{align}
+where $W^1_t$ and $W_t^2$ are independent Brownian motions. To pass from $t_i$
+to $t_{i+1}$, perform the following steps:
+\begin{enumerate}
+\item simulate $V_{t_{i+1}}$ given the value of $V_{t_i}$,
+\item simulate $I_{i+1} := \int_{t_i}^{t_{i+1}} V_s ds$ given the values of
+  $V_{t_i}$ and $V_{t_{i+1}}$,
+\item simulate $J^1_{i+1} := \int_{t_i}^{t_{i+1}} \sqrt{V_s} d W_s^1$ and 
+  $J^2_{i+1} := \int_{t_i}^{t_{i+1}} \sqrt{V_s} d W_s^2$,
+\item express $S_{t_{i+1}}$ through the simulated variables.
+\end{enumerate}
+
+\subparagraph{Step 1} It is known that
+\[
+\Law(V_{t_{i+1}} \mid V_{t_i}) = 
+  \frac{\sigma^2(1 - e^{-\kappa\Delta t})}{4\kappa}
+  \chi_d'^2\biggl(
+    \frac{4\kappa e^{-\kappa\Delta t}}
+         {\sigma^2(1-e^{-\kappa \Delta t})}V_{t_i}
+  \biggr), \qquad 
+d = \frac{4\theta\kappa}{\sigma^2},
+\]
+where $\chi_d'^2(\lambda)$ is the non-central chi-square distribution with $d$
+degrees of freedom and non-centrality parameter $\lambda$. Hence, we can sample
+from this distribution to get $V_{t_{i+1}}$.
+
+\subparagraph{Step 2 (the most difficult)} Let $F(x)$ denote the conditional
+distribution of $I_{i+1}$ (yet to be found):
+\[
+F(x) = \P(I_{i+1} \le x \mid V_{t_i}, V_{t_{i+1}}).
+\]
+We can simulate $U_{i+1}$ from a sequence of i.i.d.\ uniform random variables
+and numerically solve the equation $F(x) = U_{i+1}$. Then let $I_{i+1} = x^*$
+for the solution (i.e.\ use Smirnov's transform).
+
+To compute $F(x)$, we invert the conditional characteristic function, which is
+known is a closed form. Namely, let
+\[
+\gamma(u) = \sqrt{\kappa^2 - 2\sigma^2 i u}, \qquad
+c_1       = e^{-\kappa \Delta t}, \qquad 
+c_2(u)    = e^{-\gamma(u) \Delta t}.
+\]
+Then
+\begin{multline*}
+\phi(u) := \E(e^{i u I_{i+1}} \mid V_{t_i}, V_{t_{i+1}}) 
+  = \frac{\gamma(u)\sqrt{c_2(u)/c_1}(1 - c_1)}{\kappa(1 - c_2(u))} \\
+    \times \exp\left( 
+      \frac{V_{t_{i+1}} + V_{t_i}}{\sigma^2} 
+      \left[ 
+        \frac{\kappa(1+c_1)}{1-c_1} - \frac{\gamma(u)(1+c_2(u))}{1-c_2(u)}
+      \right]
+    \right) \\
+  \times 
+    \frac{I_{0.5d-1}\left( \sqrt{V_{t_i}V_{t_{i+1}}c_2(u)}
+            \frac{4\gamma(u)}{\sigma^2(1-c_2(u))} \right)}
+         {I_{0.5d-1}\left( \sqrt{V_{t_i}V_{t_{i+1}}c_1} 
+           \frac{4\kappa}{\sigma^2(1-c_1)} \right)},
+\end{multline*}
+where $d = 4\theta\kappa/\sigma^2$ is as above, and $I_\nu(x)$ is the modified
+Bessel function of the first kind (use \texttt{scipy.special.iv($\nu$,\,$x$)}).
+
+The inversion procedure is based on the formula
+\[
+F(x) = \frac2\pi \int_0^\infty \frac{\sin(ux)}{u} \Re(\phi(u)) du.
+\]
+To compute the integral (note: \texttt{scipy.integrate.quad} works pretty bad
+here), use the approximation
+\[
+F(x) \approx 
+\frac{hx}\pi + \frac{2}{\pi} \sum_{j=1}^N \frac{\sin(hjx)}{j} \Re(\phi(hj)).
+\]
+In order to guarantee precision $\epsilon$, the parameters $h>0$ and
+$N\in\mathbb{N}$ should be chosen such that
+\begin{align*}
+&h \ge \frac{\pi}{u_\epsilon}, \qquad 
+  \text{where}\ 1 - F(u_\epsilon) = \epsilon,\\
+&\frac{|\phi(hN)|}{N} < \frac{\pi\epsilon}{2}.
+\end{align*}
+The second condition here poses no problem when the summation in the integral
+approximation is performed in a loop -- we stop at first $j$ such that $N=j$
+satisfies the second condition (and, additionally, to avoid a huge loop, stop
+when $j$ becomes quite large, e.g.\ $j=1000$). The first condition is tough,
+Broadie and Kaya suggest to find $u_\epsilon$ simply large enough, for example
+$u_\epsilon = m + 5 s$, where $m,s$ are the mean and standard deviation of the
+distribution $F$, which can be found by numerical differentiation of the
+characteristic function (use \texttt{scipy.misc.derivative}). That is, we put
+\[
+h = \frac{\pi}{m + 5s}, \qquad 
+m = \frac{\phi'(0)}{i}, \qquad 
+s = \sqrt{-\phi''(0)}.
+\]
+
+\subparagraph{Step 3} Put
+\begin{align*}
+&J_{i+1}^1 = \frac{1}{\sigma} 
+  (V_{t_{i+1}} - V_{t_i} - \kappa\theta\Delta t + \kappa I_{i+1}),\\
+&J_{i+1}^2 = \sqrt{I_{i+1}} Z_{i+1},
+\end{align*}
+where $Z_{i+1}$ is a sequence of i.i.d.\ standard normal variables independent
+of $V_t$. Note that the formula for $J_{i+1}^2$ follows from the observation
+that $W_t^2$ is independent of $V_t$, hence $J_{i+1}$ has the normal
+distribution with variance $\int_{t_i}^{y_{i+1}} V_s ds = I_{i+1}$.
+
+\subparagraph{Step 4} Finally, put
+\[
+S_{t_{i+1}} = S_{t_i}
+\exp\left( 
+  r\Delta t - \frac12 I_{i+1} + \rho J^1_{i+1} + \sqrt{1-\rho^2} J^2_{i+1}
+\right).
+\]
+
+\paragraph{QE scheme \citep{Andersen08}}
+(QE means ``quadratic-exponential'') This scheme has the same Steps 3--4 as in
+the exact scheme, but modifies Steps 1--2 as follows.
+
+\subparagraph{Step 1} We simulate $V_{t_{i+1}}$ from an approximation of its
+conditional distribution given the value $V_{t_i}$. Define
+\begin{align*}
+&m     = \theta + (V_{t_i}-\theta) e^{-\kappa \Delta t},\\
+&s^2   = \frac{V_{t_i} \sigma^2 e^{-\kappa\Delta t}}{\kappa} (1-
+         e^{-\kappa\Delta t}) + \frac{\theta\sigma^2}{2\kappa}
+         (1 - e^{-\kappa\Delta t})^2\\
+&\psi  = \frac{s^2}{m^2},\\
+&b^2   = \frac{2}{\psi} - 1 +\sqrt{4-2\psi},\\
+&a     = \frac{m}{a+b^2},\\
+&p     = \frac{\psi - 1}{\psi+1},\\
+&\beta = \frac{1-p}{m},
+\end{align*}
+where actually $m = \E(V_{t_{i+1}} \mid V_{t_i})$, $s^2 = \Var(V_{t_{i+1}} \mid
+V_{t_i})$. Then consider two cases.
+\begin{enumerate}
+\item If $\psi \le \frac32$, simulate
+\[
+V_{t_{i+1}} =  a(b+Z_{i+1})^2,
+\]
+where $Z_{i}$ is a sequence of i.i.d.\ standard normal variables.
+
+\item If $\psi > \frac32$, simulate $V_{t_{i+1}}$ from the exponential
+distribution with mass at zero:
+\[
+\P(V_{t_{i+1}}=0) = p, \qquad 
+\P(V_{t_{i+1}} \in dx) = \beta(1-p)e^{-\beta x}\ \text{for}\ x>0.
+\]
+This case be implemented by defining
+\[
+V_{t_{i+1}} =
+\begin{cases}
+  0,                                    &\text{if}\ U_{i+1} \le p,\\
+  \frac1\beta \ln\frac{1-p}{1-U_{i+1}}, &\text{if}\ U_{i+1} > p.
+\end{cases}
+\]
+Here $U_{i}$ is a sequence of i.i.d.\ uniform random variables on $[0,1]$.
+\end{enumerate}
+
+\begin{remark}
+The idea of the above procedure is that if $V_{t_i}$ is ``large'', then its
+conditional distribution can be approximated by a squared normal distribution,
+while if $V_{t_i}$ is ``small'', it is better to approximate $V_{t_{i+1}}$ by
+an exponential distribution with mass at zero. The parameters $a,b,p,\beta$ are
+chosen to match the conditional mean and variance of the approximation with the
+true values. It turns out that such a match is possible if $\psi\le 2$ for the
+squared normal approximation and $\psi\ge 1$ for the exponential-with-mass
+approximation. Hence we use the threshold $\psi=\frac32$ in the above method
+(but, in principle, any value in $[1,2]$ will work).
+\end{remark}
+
+\subparagraph{Step 2} We simply put
+\[
+I_{i+1} = \frac12 (V_{t_i} + V_{t_{i+1}}).
+\]
+
+\subparagraph{Steps 3 and 4} The formulas here are the same as in
+Broadie--Kaya's scheme, but note that the final formula for $S_{t_{i+1}}$ can
+be explicitly written as follows:
+\[
+S_{t_{i+1}} = S_{t_i} 
+\exp\left( 
+  r\Delta t + K_0 + K_1 V_{t_i} + K_2 V_{t_{i+1}} + \sqrt{K_3 (V_{t_i} 
+  + V_{t_{i+1}})} Z_{i+1}' 
+\right),
+\]
+where $Z_i'$ is a sequence of i.i.d.\ standard normal variables (independent of
+$Z_i$ and $U_i$), and $K_i$ are constants:
+\begin{align*}
+&K_0 = -\frac{\rho\kappa\theta}{\sigma}\Delta t,\\
+&K_1 = \frac12 \left( \frac{\kappa\rho}{\sigma}-\frac12 \right) \Delta t 
+     - \frac{\rho}{\sigma},\\
+&K_2 = \frac12 \left(\frac{\kappa\rho}{\sigma}-\frac12\right)\Delta t 
+     + \frac{\rho}{\sigma},\\
+&K_3 = \frac12 (1-\rho^2)\Delta t.
+\end{align*}
+
+\paragraph{E+M scheme \citep{MrazekPospisil17}} 
+(E+M means ``exact + Milstein''.) This scheme uses the same Steps~2--4 as the
+QE scheme, but in Step~1, to simulate the process $V_t$, it uses the Milstein
+scheme as follows:
+\[
+V_{t_{i+1}} = V_{t_i} + \kappa(\theta- V_{t_i}^+) \Delta t 
++ \sigma \sqrt{V_{t_i}^+} Z_{i+1} \sqrt{\Delta t} 
++ \frac14 \sigma^2(Z_{i+1}^2 -1) \Delta t. 
+\]
+
+
+\section{SABR (Stochastic Alpha, Beta, Rho) model}
+Assume the dynamics of the base asset $F_t$ (e.g., a futures of a forward
+contract) is defined by the equations
+\begin{align*}
+&dF_t          = \alpha_t F_t^\beta dW_t^1, \qquad F_0 = f > 0,\\
+&d\alpha_t     = \nu\alpha_t dW_t^2,        \qquad \alpha_0 = \alpha > 0,\\
+&dW_t^1 dW_t^2 = \rho dt,
+\end{align*}
+where $\alpha>0$, $\beta>0$, $\rho\in(-1,1)$, $\nu > 0$ are the model
+parameters. If $\beta <1$, the process $F_t$ may reach zero; in that case we
+will assume that it gets trapped at zero.
+
+\paragraph{Approximation of implied volatility \citep{Hagan+02}} 
+The implied volatility produced by the model can be approximated by the formula
+\begin{multline*}
+\hat\sigma(T,K) = 
+  \frac{\alpha}
+    {(fK)^{(1-\beta)/2} 
+      \left\{ 1+\frac{(1-\beta)^2}{24} \ln^2 \frac fK 
+        + \frac{(1-\beta)^4}{1920} \ln^4 \frac fK + \ldots
+      \right\}} 
+   \cdot \left( \frac{z}{x(z)}\right) \cdot\\
+   \cdot \left\{ 
+     1 + \left[
+       \frac{(1-\beta)^2}{24} \frac{\alpha^2}{(fK)^{1-\beta}} 
+       + \frac{\rho\beta\nu\alpha}{4(fK)^{(1-\beta)/2}} 
+       + \frac{2-3\rho^2}{24} \nu^2 
+     \right] T 
+     + \ldots 
+   \right\},
+\end{multline*}
+where
+\[
+z = \frac\nu\alpha (fK)^{(1-\beta)/2} \ln \frac fK, \qquad 
+x(z) = \ln\left\{ \frac{\sqrt{1-2\rho z + z^2} + z - \rho}{1-\rho} \right\}.
+\]
+For at-the-money options ($K=f$) we have
+\[
+\hat\sigma(T,f) = \frac{\alpha}{f^{1-\beta}} 
+\left\{1 + 
+  \left[ \frac{(1-\beta)^2}{24} \frac{\alpha^2}{f^{2-2\beta}} 
+    + \frac{\rho\beta\alpha\nu}{4f^{1-\beta}} 
+    + \frac{(2-3\rho^2)\nu^2}{24}
+  \right] T 
+  + \ldots
+\right\},
+\]
+i.e.\ in the above general formula we let $z/x(z)=1$, its limit value as $z\to
+0$ (we have $z=0$ when $K=f$).
+
+For $\beta=0$, there is a more accurate formula (with an expansion of the 4th
+order, rather than the 2nd order in the general formula):
+\[
+\hat\sigma(T,f) = \alpha\frac{\ln(f/K)}{f-K}
+\cdot \left( \frac{z}{x(z)} \right)
+\cdot \left\{ 1 + 
+  \left[ \frac{\alpha^2}{24fK} + \frac{2-3\rho^2}{24}\nu^2 \right] T 
+  + \ldots
+\right\},
+\]
+where
+\[
+z = \frac\nu\alpha\sqrt{fK} \ln \frac{f}{K}, \qquad 
+x(z) = \ln\left\{ \frac{\sqrt{1-2\rho z + z^2} + z - \rho}{1 - \rho} \right\}.
+\]
+For $\beta=1$, a more accurate formula (also, with a 4th order expansion) is
+\[
+\hat\sigma(T,f) = \alpha \cdot \left( \frac{z}{x(z)} \right)
+\cdot \left\{ 1 + 
+  \left[\frac{\rho\alpha\nu}{4} + \frac{(2-3\rho^2)\nu^2}{24} \right] T
+  + \ldots
+\right\},
+\]
+where
+\[
+z = \frac\nu\alpha \ln \frac{f}{K}, \qquad 
+x(z) = \ln\left\{ \frac{\sqrt{1-2\rho z + z^2} + z - \rho}{1 - \rho}\right\}.
+\]
+
+
+\section{SVI (Stochastic Volatility Inspired) model}
+The SVI model \citep{Gatheral04} approximates the volatility curve without
+making explicit assumptions about dynamics of the asset price process. Fix an
+expiration time $T>0$ and let
+\[
+x = \ln\frac{K}{F_T}
+\]
+denote the log-moneyness of an option with expiration time $T$ and strike $K(x)
+= F_Te^x$, where $F_t = \E(S_t) = e^{rt}S_0$ is the forward price. By $w(x)$
+denote the total implied variance of the option, i.e.\
+\[
+w(x) = \hat \sigma^2(T, K(x)) T,
+\]
+where $\hat \sigma(T,K)$ is, as usual, the implied volatility.
+
+\paragraph{Three parametrizations of the SVI model} 
+The following three parametrizations can be found in the literature (see
+\cite{GatheralJacquier14}).
+
+\subparagraph{Raw parametrization} The SVI model in the \emph{raw
+parametrization} approximates the total implied variance (for fixed $T$) by the
+function
+\[
+w(x) = a + b\left( \rho(x-m) + \sqrt{(x-m)^2 + \sigma^2} \right),
+\]
+where $a\in\R$, $b\ge 0$, $|\rho|<1$, $m\in\R$, $\sigma>0$ are parameters of
+the model. Note that, of course, the same formula can used to approximate the
+implied volatility curve in $(\ln K, \hat\sigma^2)$ coordinates, after a change
+of parameters.
+
+
+\subparagraph{Natural parametrization} This parametrization assumes
+\[
+w(x) = \Delta + \frac{\omega}{2}
+\left( 1 + \zeta\rho(x-\mu) + \sqrt{(\zeta(x-\mu)+\rho)^2 + 1-\rho^2} \right).
+\]
+where $\omega\ge 0$, $\Delta,\mu\in R$, $|\rho|<1$, $\zeta>0$ are parameters.
+
+The following formulas can be used for conversion between the raw and natural
+parametrizations (note that the parameter $\rho$ is the same):
+\begin{align*}
+&\omega = \frac{2b\sigma}{\sqrt{1-\rho^2}},&
+  &a = \delta + \frac12 \omega(1-\rho^2),\\
+&\delta = a-\frac12 \omega(1-\rho^2),&
+  &b = \frac{\omega\zeta}{2},\\
+&\mu = m + \frac{\rho\sigma}{\sqrt{1-\rho^2}},&
+  &m = \mu-\frac{\rho}{\zeta},\\
+&\zeta = \frac{\sqrt{1-\rho^2}}{\sigma},&
+  &\sigma = \frac{\sqrt{1-\rho^2}}{\zeta}.
+\end{align*}
+
+\subparagraph{Jump-wing parametrization} The parameters are $v(T)$, $\psi(T)$,
+$p(T)$, $c(T)$, $\tilde v(T)$ (this parametrization specifies dependence on
+$T$), which are obtained from the raw parameters as follows:
+\begin{align*}
+&v = \frac{a + b(-\rho m + \sqrt{m^2+\sigma^2})}{T},\\
+&\psi = \frac{b}{2\sqrt{Tv}} 
+  \left( -\frac{m}{\sqrt{m^2 + \sigma^2}} + \rho\right),\\
+&p = \frac{1}{\sqrt{Tv}} b(1-\rho),\\
+&c = \frac{1}{\sqrt{Tv}} b(1+\rho),\\
+&\tilde v = \frac1T \left( a + b\sigma\sqrt{1-\rho^2} \right).
+\end{align*}
+
+To construct a volatility surface from this parametrization, we can keep the
+jump-wing parameters fixed, and for each $T$ find the corresponding raw
+parameters to get a volatility curve for this $T$. The raw parameters are
+obtained as follows. First, define
+\[
+b     = \frac12 \sqrt{Tv}(c+p), \qquad
+\rho  = 1 - \frac{2p}{c+p}, \qquad
+\beta = \rho - \frac{2\psi\sqrt{Tv}}{b}.
+\]
+Then, if $\beta=0$, the remaining raw parameters are
+\begin{align*}
+&m      = 0,\\
+&\sigma = \frac{(v-\tilde v)T}{b(1-\sqrt{1-\rho^2})},\\
+&a      = T\tilde v - b\sigma\sqrt{1-\rho^2}.
+\end{align*}
+If $\beta\neq 0$ and $|\beta|\le 1$, then
+\begin{align*}
+&m = \frac{(v-\tilde v)T}
+          {b(-\rho+\sgn(\alpha)\sqrt{1+\alpha^2} - \alpha\sqrt{1-\rho^2})},
+  \qquad\text{where}\ \alpha = \sgn(\beta)\sqrt{\frac1{\beta^2} - 1},\\
+&\sigma = \alpha m,\\
+&a = T\tilde v - b\sigma\sqrt{1-\rho^2}.
+\end{align*}
+If $|\beta|>1$, we get a non-convex volatility curve; this case should be
+excluded.
+
+
+\paragraph{Parameter calibration} 
+The following two-step procedure was proposed by \cite{Zeliade12} (see also
+\cite{Aurell14}). Let us work with the raw parametrization. Introduce the
+variable
+\[
+y(x) = \frac{x-m}{\sigma},
+\]
+so that the raw parametrization can be rewritten in the form
+\[
+w(x) = a + dy(x) + cz(x), \qquad z(x) =\sqrt{y(x)^2+1},\\
+\]
+where
+\[
+d=\rho b\sigma,\qquad c=b\sigma.
+\]
+For each $m,\sigma$ we can solve the \emph{inner} optimization problem
+\[
+\sum_{i=1}^n (a + d y(x_i) + c z(x_i) - w_m(x_i))^2 
+\xrightarrow[(a,d,c)\in\mathcal{D}]{} \min,
+\]
+where $w_m(x_i)$ are observed market total implied variances, and $\mathcal{D}$
+is the domain defined by the constraints
+\begin{align*}
+&0      \le c \le 4\sigma,\\
+&|d|    \le c,\\
+&|d|    \le 4\sigma-c,\\
+&0\le a \le \max_i w(x_i).
+\end{align*}
+This constraints are derived from the model well-posedness conditions and
+conditions for absence of arbitrage (see \cite{Aurell14} for details). The
+inner optimization problem is a convex minimization problem on a compact
+domain, hence it has a unique solution (Python's
+\texttt{scipy.optimize.minimize(method="SLSQP")} works quite well here).
+
+Then we solve the \emph{outer} minimization problem and find optimal
+$m,\sigma$:
+\[
+\sum_{i=1}^n 
+  ( w(x_i \mid m,\sigma, a^*(m,\sigma), b^*(m,\sigma), \rho^*(m,\sigma)) 
+  - w_m(x_i) )^2
+\xrightarrow[(m,\sigma)\in\mathcal{E}]{} \min,
+\]
+where $a^*,b^*,\sigma^*$ is the solution of the inner minimization problem for
+given $m,\sigma$, and $\mathcal{E}$ is the domain
+\begin{align*}
+&\min_i x_i    \le m      \le \max_i x_i,\\
+&\sigma_{\min} \le \sigma \le \max_\sigma.
+\end{align*}
+The boundaries $\sigma_{\min}$, $\sigma_{\max}$ are specified by the user, a
+reasonable choice is $\sigma_{\min} = 10^{-4}$, $\sigma_{\max} = 10$. The
+objective function in the outer problem is not nice, hence some global
+optimization algorithm should be used.
+
+
+\bibliographystyle{apalike}
+\bibliography{vol}
+
+\end{document}
