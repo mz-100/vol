@@ -2,7 +2,7 @@ from typing import Optional
 from dataclasses import dataclass
 import numpy as np
 from scipy import optimize  # type: ignore
-from volatility.misc import FloatArray, Floats
+from .misc import FloatArray, Floats
 
 
 @dataclass
