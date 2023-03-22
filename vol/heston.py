@@ -13,7 +13,9 @@ import scipy.integrate as intg   # type: ignore
 import scipy.special as spec     # type: ignore
 import scipy.misc as spmisc      # type: ignore
 from scipy import LowLevelCallable
-from . import blackscholes
+from volatility.vol import blackscholes
+from scipy.optimize import minimize, Bounds
+from scipy.special import lambertw
 
 
 # The following two functions are used to implement Heston's formula with Numba
@@ -50,6 +52,218 @@ def _heston_integrand(n, x):
              k*_heston_cf(s, v, kappa, theta, sigma, rho, u, t))).real
 
 
+@numba.cfunc(float64(intc, CPointer(float64)))
+def _angled_integrand(n, x):
+    """Lewis integrand with scaler and angle modifications."""
+    # x = (u, t, k, s, v, kappa, theta, sigma, rho, alpha, angle)
+    u = x[0]
+    t = x[1]
+    k = x[2]
+    s = x[3]
+    v = x[4]
+    kappa = x[5]
+    theta = x[6]
+    sigma = x[7]
+    rho = x[8]
+    alpha = x[9]
+    angle = x[10]
+    w = math.log(s/k)
+    hh = -1j*alpha+u*(1+1j*math.tan(angle))
+    Q = _heston_cf(s, v, kappa, theta, sigma, rho, hh-1j, t)/(hh*(hh-1j))
+    return (cmath.exp(-u*math.tan(angle)*w+1j*u*w)*Q*(1+1j*math.tan(angle))).real
+
+
+@numba.njit(complex128(
+    float64, float64, float64, float64, float64, float64, complex128, float64))
+def _CF(s, v, kappa, theta, sigma, rho, u, t):
+
+    beta = kappa - 1j*sigma*rho*u
+    D = cmath.sqrt(beta**2 + sigma**2 * u*(u+1j))
+        
+    if beta.real * D.real + beta.imag * D.imag > 0:
+        r = -sigma**2*u*(u+1j)/(beta + D)
+    else:
+        r = beta - D
+        
+    if D != 0:
+        y = (cmath.exp(-D*t) - 1)/(2*D)
+    else:
+        y = -t/2
+        
+    A = (kappa*theta/sigma**2)*(r*t-2*cmath.log(-r*y + 1))
+    B = u*(u+1j)*y/(1-r*y)
+
+    return cmath.exp(A + v*B)
+
+
+@numba.cfunc(float64(intc, CPointer(float64)))
+def _angled_integrand2(n, x):
+    """Lewis integrand with scaler and angle modifications."""
+    # x = (u, t, k, s, v, kappa, theta, sigma, rho, alpha, angle)
+    u = x[0]
+    t = x[1]
+    k = x[2]
+    s = x[3]
+    v = x[4]
+    kappa = x[5]
+    theta = x[6]
+    sigma = x[7]
+    rho = x[8]
+    alpha = x[9]
+    angle = x[10]
+    w = math.log(s/k)
+    hh = -1j*alpha+u*(1+1j*math.tan(angle))
+    Q = _CF(s, v, kappa, theta, sigma, rho, hh-1j, t)/(hh*(hh-1j))
+    return (cmath.exp(-u*math.tan(angle)*w+1j*u*w)*Q*(1+1j*math.tan(angle))).real
+
+
+@numba.njit(error_model="numpy")
+def _call_price_DE(s, v, kappa, theta, sigma, rho, alpha, angle, t,k, N, tol, h_trap):
+    """Trapezodial integration with Lewis integrand and DE-O quadratures. The calculations are performed in the order:
+        1. we transform the integrand from the (0, ∞) domain to (-1, 1).
+        2. then we make them decay double-exponentially with the transformation from (-∞, +∞).
+        3. we integrate by trapezoids for x < 0 and x >= 0 separately.
+        4. the criterion: 2 consecutive partial sum terms must fall below tolerance threshold.
+
+    Args:
+        s: price level.
+        v, kappa, theta, sigma, rho: Heston parameters.
+        alpha: optimal scaler.
+        angle: optimal angle.
+        t: time to maturity.
+        k: strike level.
+        N: maximal number of numerical integration terms.
+        tol: threshold for integration.
+        h_trap: trapezoidal parameter. set according to a heuristic from Andersen & Lake (2018).
+
+    """
+    w = math.log(s/k)
+    def f(x):
+        var = -1j*alpha + x*(1 + 1j*math.tan(angle))
+        Q = _heston_cf(s, v, kappa, theta, sigma, rho, var-1j, t)/(var*(var-1j))
+        return (math.exp(-x*math.tan(angle)*w)*cmath.exp(1j*x*w)*Q*(1+1j*math.tan(angle))).real
+    def u(x):
+        return f((1+x)/(1-x))*2/(1-x)**2
+    sum_left = 0
+    n = -1
+    qn = math.exp(-math.pi*math.sinh(n*h_trap))
+    yn = 2*qn/(1+qn)
+    xn = 1 - yn
+    wn = yn*math.pi*math.cosh(n*h_trap)/(1+qn)
+    delta = wn*u(xn)
+    sum_left += delta
+    history_left = [delta, delta]
+    while not (((abs(history_left[-2]) < tol) & (abs(history_left[-1]) < tol)) or abs(n) > N-1):
+        n = n - 1
+        qn = math.exp(-math.pi*math.sinh(n*h_trap))
+        yn = 2*qn/(1+qn)
+        xn = 1 - yn
+        wn = yn*math.pi*math.cosh(n*h_trap)/(1+qn)
+        delta = wn*u(xn)
+        history_left.append(delta)
+        sum_left += delta
+    sum_right = 0
+    n = 0
+    qn = math.exp(-math.pi*math.sinh(n*h_trap))
+    yn = 2*qn/(1+qn)
+    xn = 1 - yn
+    wn = yn*math.pi*math.cosh(n*h_trap)/(1+qn)
+    delta = wn*u(xn)
+    sum_right += delta
+    history_right = [delta, delta]
+    while not (((abs(history_right[-2]) < tol) & (abs(history_right[-1]) < tol)) or n > N-1):
+        n += 1
+        qn = math.exp(-math.pi*math.sinh(n*h_trap))
+        yn = 2*qn/(1+qn)
+        xn = 1 - yn
+        wn = yn*math.pi*math.cosh(n*h_trap)/(1+qn)
+        delta = wn*u(xn)
+        sum_right += delta
+        history_right.append(delta)  
+    I = h_trap*(sum_left + sum_right)
+    return I
+
+@numba.njit(error_model="numpy")
+def _call_price_DE2(s, v, kappa, theta, sigma, rho, alpha, angle, t,k, N, tol, h_trap):
+    """Trapezodial integration with Lewis integrand and DE-O quadratures. The calculations are performed in the order:
+        1. we transform the integrand from the (0, ∞) domain to (-1, 1).
+        2. then we make them decay double-exponentially with the transformation from (-∞, +∞).
+        3. we integrate by trapezoids for x < 0 and x >= 0 separately.
+        4. the criterion: 2 consecutive partial sum terms must fall below tolerance threshold.
+
+    Args:
+        s: price level.
+        v, kappa, theta, sigma, rho: Heston parameters.
+        alpha: optimal scaler.
+        angle: optimal angle.
+        t: time to maturity.
+        k: strike level.
+        N: maximal number of numerical integration terms.
+        tol: threshold for integration.
+        h_trap: trapezoidal parameter. set according to a heuristic from Andersen & Lake (2018).
+
+    """
+    w = math.log(s/k)
+    def f(x):
+        var = -1j*alpha + x*(1 + 1j*math.tan(angle))
+        Q = _CF(s, v, kappa, theta, sigma, rho, var-1j, t)/(var*(var-1j))
+        return (math.exp(-x*math.tan(angle)*w)*cmath.exp(1j*x*w)*Q*(1+1j*math.tan(angle))).real
+    def u(x):
+        return f((1+x)/(1-x))*2/(1-x)**2
+    sum_left = 0
+    n = -1
+    qn = math.exp(-math.pi*math.sinh(n*h_trap))
+    yn = 2*qn/(1+qn)
+    xn = 1 - yn
+    wn = yn*math.pi*math.cosh(n*h_trap)/(1+qn)
+    delta = wn*u(xn)
+    sum_left += delta
+    history_left = [delta, delta]
+    while not (((abs(history_left[-2]) < tol) & (abs(history_left[-1]) < tol)) or abs(n) > N-1):
+        n = n - 1
+        qn = math.exp(-math.pi*math.sinh(n*h_trap))
+        yn = 2*qn/(1+qn)
+        xn = 1 - yn
+        wn = yn*math.pi*math.cosh(n*h_trap)/(1+qn)
+        delta = wn*u(xn)
+        history_left.append(delta)
+        sum_left += delta
+    sum_right = 0
+    n = 0
+    qn = math.exp(-math.pi*math.sinh(n*h_trap))
+    yn = 2*qn/(1+qn)
+    xn = 1 - yn
+    wn = yn*math.pi*math.cosh(n*h_trap)/(1+qn)
+    delta = wn*u(xn)
+    sum_right += delta
+    history_right = [delta, delta]
+    while not (((abs(history_right[-2]) < tol) & (abs(history_right[-1]) < tol)) or n > N-1):
+        n += 1
+        qn = math.exp(-math.pi*math.sinh(n*h_trap))
+        yn = 2*qn/(1+qn)
+        xn = 1 - yn
+        wn = yn*math.pi*math.cosh(n*h_trap)/(1+qn)
+        delta = wn*u(xn)
+        sum_right += delta
+        history_right.append(delta)  
+    I = h_trap*(sum_left + sum_right)
+    return I
+
+
+def R(alpha, F0, K):
+    """Correction on residues in the Lewis integrand"""
+    if math.isclose(alpha,0):
+        return F0 * 0.5
+    elif math.isclose(alpha, -1):
+        return F0-K*0.5
+    elif alpha < -1:
+        return F0-K
+    elif (alpha < 0)&(alpha > -1):
+        return F0
+    else:
+        return 0
+
+
 @dataclass
 class Heston:
     """The Heston model.
@@ -68,6 +282,9 @@ class Heston:
         v: Initial variance, i.e. v_0.
         kappa, theta, sigma, rho: Model parameters.
         r: Interest rate.
+        alpha_bounds: Minimum and maximum of admissible scaler values.
+        alpha: Optimal scaler values.
+        angle: Optimal angle.
 
     Methods:
         call_price: Computes call option price.
@@ -76,6 +293,8 @@ class Heston:
         simulate_euler: Simulates paths by Euler's scheme.
         simulate_qe: Simulates paths by Andersen's QE scheme.
         simulate_exact: Simulates paths by Broadie-Kaya's exact scheme.
+        k_root: Auxiliary functions for alpha roots finding.
+        Target: Lee's function for bounds on alpha.
     """
     s: float
     v: float
@@ -84,31 +303,56 @@ class Heston:
     sigma: float
     rho: float
     r: float = 0
+    alpha_bounds: tuple = (None, None)
+    alpha: float = 0
+    angle: float = 0
 
-    def _call_price_scalar(self, t: float, k: float) -> float:
+    def _call_price_scalar(self, t: float, k: float, method: str = "heston", N: int = 10, tol: float = 1e-6) -> float:
         """Computes the price of a call option by Heston's semi-closed formula.
 
         This is an auxiliary function which works with scalar expiration time
         and strike. It is called by `call_price`, which allows vectorization.
         """
-        return (0.5*(self.s - math.exp(-self.r*t)*k) +
-                1/math.pi * math.exp(-self.r*t) *
-                intg.quad(
-                    LowLevelCallable(_heston_integrand.ctypes),
-                    0, math.inf,
-                    args=(t, k, self.s, self.v, self.kappa, self.theta,
-                          self.sigma, self.rho))[0])
+        if method=="heston":
+            return (0.5*(self.s - math.exp(-self.r*t)*k) +
+                    1/math.pi * math.exp(-self.r*t) *
+                    intg.quad(
+                        LowLevelCallable(_heston_integrand.ctypes),
+                        0, math.inf,
+                        args=(t, k, self.s, self.v, self.kappa, self.theta,
+                            self.sigma, self.rho))[0])
+        elif method=="angledGL":
+            w = math.log(self.s/k)
+            return R(self.alpha, self.s, k) - (self.s*math.exp(self.alpha*w)/math.pi)* intg.quad(LowLevelCallable(_angled_integrand.ctypes), 0, math.inf,
+                    args=(t, k, self.s, self.v, self.kappa, self.theta, self.sigma, self.rho, self.alpha, self.angle))[0]
+        elif method=="angledGL2":
+            w = math.log(self.s/k)
+            return R(self.alpha, self.s, k) - (self.s*math.exp(self.alpha*w)/math.pi)* intg.quad(LowLevelCallable(_angled_integrand2.ctypes), 0, math.inf,
+                    args=(t, k, self.s, self.v, self.kappa, self.theta, self.sigma, self.rho, self.alpha, self.angle))[0]           
+        elif method=="DE":
+            w = math.log(self.s/k)
+            h_trap = (lambertw(2*N*math.pi)/N).real
+            return R(self.alpha, self.s, k) - (self.s*math.exp(self.alpha*w)/math.pi)*_call_price_DE(self.s, self.v, self.kappa, self.theta, self.sigma, self.rho,self.alpha, self.angle, t, k, N, tol, h_trap)
+        elif method=="DE2":
+            w = math.log(self.s/k)
+            h_trap = (lambertw(2*N*math.pi)/N).real
+            return R(self.alpha, self.s, k) - (self.s*math.exp(self.alpha*w)/math.pi)*_call_price_DE2(self.s, self.v, self.kappa, self.theta, self.sigma, self.rho,self.alpha, self.angle, t, k, N, tol, h_trap)
+
 
     def call_price(
         self,
         t: Union[float, NDArray[float_]],
-        k: Union[float, NDArray[float_]]
+        k: Union[float, NDArray[float_]],
+        method: str = "heston",
+        N: int = 10,
+        tol: float = 1e-6
     ) -> Union[float, NDArray[float_]]:
         """Computes the price of a call option by Heston's semi-closed formula.
 
         Args:
             t: Expiration time (float or ndarray).
             k: Strike (float or ndarray).
+            method: Admits Heston, angledGL (Gauss-Lobato with the Angled Lewis integrand), DE (Double-Exponential trapezodial quadratures).
 
         Returns:
             If `t` and `k` are scalars, returns the price of a call option as a
@@ -122,10 +366,10 @@ class Heston:
         b = np.broadcast(t, k)
         if b.nd:  # Vector arguments were supplied
             return np.fromiter(
-                (self._call_price_scalar(t_, k_) for (t_, k_) in b),
+                (self._call_price_scalar(t_, k_, method, N, tol) for (t_, k_) in b),
                 count=b.size, dtype=float_).reshape(b.shape)
         else:
-            return self._call_price_scalar(t, k)
+            return self._call_price_scalar(t, k, method, N, tol)
 
     def iv(
         self,
@@ -462,3 +706,132 @@ class Heston:
             return S, V
         else:
             return S
+    
+    def CF(self, 
+           u: float, 
+           t: float
+           ) -> complex:
+        """Simplified version of the Heston characteristic function. From Andresen & Lake (2018).
+
+        Args:
+            u: integration variable.
+            t: time to maturity.
+        """
+        beta = self.kappa - 1j*self.sigma*self.rho*u
+        D = cmath.sqrt(beta**2 + self.sigma**2 * u*(u+1j))
+        
+        if beta.real * D.real + beta.imag * D.imag > 0:
+            r = -self.sigma**2*u*(u+1j)/(beta + D)
+        else:
+            r = beta - D
+        
+        if cmath.isclose(D, 0) == False:
+            y = (cmath.exp(-D*t) - 1)/(2*D)
+        else:
+            y = -t/2
+        
+        A = (self.kappa*self.theta/self.sigma**2)*(r*t-2*cmath.log(-r*y + 1))
+        B = u*(u+1j)*y/(1-r*y)
+
+        return cmath.exp(A + self.v*B)
+    
+
+    def Target(self, 
+               u: float, 
+               t: float
+               ) -> complex:
+        """Robert Lee's function for moment explosions.
+            Corresponds to an explosion in the denominator of the CF: G*exp(D*T)=1.
+        
+        Args:
+            u: integration variable.
+            t: time to maturity.
+        """
+        A = (self.rho*self.sigma*u*1j - self.kappa)
+        B = self.sigma**2*(u*1j + u**2)
+        d = np.sqrt(A**2 + B)
+        g = (self.kappa - self.rho*self.sigma*u*1j + d) / (self.kappa - self.rho*self.sigma*u*1j - d)
+
+        return ((g*np.exp(d*t)).real - 1)**2
+
+    def calibrate_alpha_angle(self, 
+                              t: float, 
+                              k: float, 
+                              output: bool = True
+                              ):
+        """Calibration of the scaler, angle parameters with bracketing according to:
+        Rollin et all (2009), “A new Look at the Heston Characteristic Function”.
+        The angle is calibrated according to Andresen & Lake (2018).
+        The procedure is enacted as follows:
+        1. rough bounds on k_min, k_max via explosion of the CF.
+        2. numerical estimation of the closest singularities to the region of interest.
+        3. search for an optimal alpha on an admissible region.
+        4. heuristical setting of the angle.
+
+        Args:
+            t: time to maturity.
+            k: strike.
+            output: whether the final parameters shall be printed.
+        """
+        def k_root(t, x, side):
+            if side == "plus":
+                numerator = (self.sigma - 2*self.rho*self.kappa) + cmath.sqrt((self.sigma-2*self.rho*self.kappa)**2 + 4*(self.kappa**2+x**2/t**2)*(1-self.rho**2))
+                denominator = 2*self.sigma*(1-self.rho)
+                return numerator/denominator
+            if side == "minus":
+                numerator = (self.sigma - 2*self.rho*self.kappa) - cmath.sqrt((self.sigma-2*self.rho*self.kappa)**2 + 4*(self.kappa**2+x**2/t**2)*(1-self.rho**2))
+                denominator = 2*self.sigma*(1-self.rho)
+                return numerator/denominator
+            
+        k_minus, k_plus = k_root(t, 0, "minus").real, k_root(t, 0, "plus").real
+        k_min_left, k_min_right = k_root(t, 2*math.pi, "minus").real, k_minus
+
+        if self.kappa - self.rho*self.sigma > 0:
+            k_max_left, k_max_right = k_plus, k_root(t, 2*math.pi, "plus").real
+
+        elif self.kappa - self.rho*self.sigma < 0:
+            T_cut = -2/(self.kappa-self.rho*self.sigma*k_plus)
+
+            if t < T_cut:
+                k_max_left, k_max_right = k_plus, k_root(t, math.pi, "plus").real
+            else:
+                k_max_left, k_max_right = 1, k_plus
+
+        else:
+            k_max_left, k_max_right = k_plus, k_root(t, math.pi, "plus").real
+
+        target = lambda a: self.Target(-1j*a, t)
+        k_min = minimize(target, x0=(k_min_left+k_min_right)/2, bounds=Bounds(lb=k_min_left, ub=k_min_right)).x[0]
+        k_max = minimize(target, x0=(k_max_left+k_max_right)/2, bounds=Bounds(lb=k_max_left, ub=k_max_right)).x[0]
+
+        w = math.log(self.s/k)
+        
+        def target_alpha(a):
+            """Function for optimal alpha selection. We minimize integrand's oscillator.
+            """
+            return (np.log(self.CF(-(a+1)*1j, t))-np.log(a*(a+1))+a*w).real
+
+        if w >= 0:
+            alpha_left = k_min.real - 1
+            alpha_right = -1
+            alpha = minimize(target_alpha, x0=(alpha_left+alpha_right)/2, bounds=Bounds(lb=alpha_left, ub=alpha_right)).x[0]
+        else:
+            alpha_left = 0
+            alpha_right = k_max.real - 1
+            alpha = minimize(target_alpha, x0=(alpha_left+alpha_right)/2, bounds=Bounds(lb=alpha_left, ub=alpha_right)).x[0]
+        
+        self.alpha_bounds = (alpha_left, alpha_right)
+        self.alpha = alpha
+
+        r = self.rho - (self.sigma*w)/(self.v+self.kappa*self.theta*t)
+        # Heuristic for optimal angle selection.
+        if r*w < 0:
+            angle = math.pi*np.sign(w)/12
+        else:
+            angle = 0
+
+        self.angle = angle
+
+        if output:
+
+            return alpha_left, alpha_right, alpha, angle
